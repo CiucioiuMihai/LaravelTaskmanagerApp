@@ -10,7 +10,14 @@ class CategoryController extends Controller
 {
     public function index(Request $request)
     {
-        $categories = Category::where('user_id', $request->user()->id)->orderBy('name')->paginate(10);
+        $user = $request->user();
+
+        $query = Category::query()->orderBy('name');
+        if (!($user && $user->is_admin)) {
+            $query->where('user_id', $user->id);
+        }
+
+        $categories = $query->paginate(10);
         return view('categories.index', compact('categories'));
     }
 
@@ -30,7 +37,8 @@ class CategoryController extends Controller
 
     public function destroy(Category $category)
     {
-        abort_unless($category->user_id === Auth::id(), 403);
+        $user = Auth::user();
+        abort_unless($user && ($user->is_admin || $category->user_id === $user->id), 403);
         $category->delete();
         return back()->with('status', 'Category deleted.');
     }

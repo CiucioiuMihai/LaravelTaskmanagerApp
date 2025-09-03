@@ -55,6 +55,9 @@
                             <tr>
                                 <td class="px-4 py-2 align-top">
                                     <div class="font-medium text-gray-900">{{ $task->title }}</div>
+                                    @if(!empty($isAdminView))
+                                        <div class="text-xs text-gray-500">by {{ $task->user->name ?? 'Unknown' }}</div>
+                                    @endif
                                     <div class="mt-1 text-sm text-gray-500 md:hidden">
                                         {{-- Mobile-only meta row --}}
                                         @if($task->category)
@@ -86,11 +89,13 @@
                                             </button>
                                         </form>
                                         <a href="{{ route('tasks.edit', $task) }}" class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs sm:text-sm whitespace-normal break-words">Edit</a>
+                                        @if(auth()->check() && auth()->user()->is_admin)
                                         <form method="post" action="{{ route('tasks.destroy', $task) }}" onsubmit="return confirm('Delete this task?')">
                                             @csrf
                                             @method('DELETE')
                                             <button class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs sm:text-sm text-red-600 whitespace-normal break-words">Delete</button>
                                         </form>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>

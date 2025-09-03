@@ -10,11 +10,19 @@ use Illuminate\Validation\Rule;
 
 class TaskController extends Controller
 {
+    // Controller-level middleware is not available in this base Controller; use route middleware instead.
+
     public function index(Request $request)
     {
-        $query = Task::query()->where('user_id', $request->user()->id)
-            ->with('category')
-            ->latest();
+        $user = $request->user();
+
+        if ($user && $user->is_admin) {
+            $query = Task::query()->with(['category', 'user'])->latest();
+        } else {
+            $query = Task::query()->where('user_id', $user->id)
+                ->with('category')
+                ->latest();
+        }
 
         if ($status = $request->query('status')) {
             $query->where('status', $status);
@@ -22,11 +30,42 @@ class TaskController extends Controller
         if ($categoryId = $request->query('category_id')) {
             $query->where('category_id', $categoryId);
         }
+        if ($user && $user->is_admin) {
+            if ($filterUserId = $request->query('user_id')) {
+                $query->where('user_id', $filterUserId);
+            }
+        }
 
         return view('tasks.index', [
             'tasks' => $query->paginate(10)->withQueryString(),
-            'categories' => Category::where('user_id', $request->user()->id)->orderBy('name')->get(),
-            'filters' => $request->only(['status', 'category_id'])
+            'categories' => $user && $user->is_admin
+                ? Category::orderBy('name')->get()
+                : Category::where('user_id', $user->id)->orderBy('name')->get(),
+            'filters' => $request->only(['status', 'category_id', 'user_id']),
+            'isAdminView' => (bool) ($user && $user->is_admin),
+        ]);
+    }
+
+    public function adminIndex(Request $request)
+    {
+        // Admins can see all tasks
+        $query = Task::query()->with(['category', 'user'])->latest();
+
+        if ($status = $request->query('status')) {
+            $query->where('status', $status);
+        }
+        if ($categoryId = $request->query('category_id')) {
+            $query->where('category_id', $categoryId);
+        }
+        if ($userId = $request->query('user_id')) {
+            $query->where('user_id', $userId);
+        }
+
+        return view('tasks.index', [
+            'tasks' => $query->paginate(10)->withQueryString(),
+            'categories' => Category::orderBy('name')->get(),
+            'filters' => $request->only(['status', 'category_id', 'user_id']),
+            'isAdminView' => true,
         ]);
     }
 
@@ -84,7 +123,7 @@ class TaskController extends Controller
 
     public function destroy(Task $task)
     {
-        $this->authorizeTask($task);
+        // Route-level 'admin' middleware restricts access here.
         $task->delete();
         return redirect()->route('tasks.index')->with('status', 'Task deleted.');
     }
@@ -102,6 +141,10 @@ class TaskController extends Controller
 
     protected function authorizeTask(Task $task): void
     {
+        $user = Auth::user();
+        if ($user && $user->is_admin) {
+            return; // admins can access any task for non-destroy actions
+        }
         abort_unless($task->user_id === Auth::id(), 403);
     }
 }

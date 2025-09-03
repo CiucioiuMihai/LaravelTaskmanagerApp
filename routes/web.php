@@ -19,8 +19,10 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     // Tasks
-    Route::resource('tasks', TaskController::class)->except(['show']);
+    Route::resource('tasks', TaskController::class)->except(['show', 'destroy']);
+    Route::delete('tasks/{task}', [TaskController::class, 'destroy'])->middleware('admin')->name('tasks.destroy');
     Route::patch('tasks/{task}/toggle', [TaskController::class, 'toggleComplete'])->name('tasks.toggle');
+    Route::get('tasks/all', [TaskController::class, 'adminIndex'])->middleware('admin')->name('tasks.all');
 
     // Categories (simple index/create/delete on same page)
     Route::get('categories', [CategoryController::class, 'index'])->name('categories.index');
